@@ -344,20 +344,24 @@ def run_engine(goal_prompt, memory=None):
 def interactive_mode():
     memory = MemoryManager()
     sid = memory.session_id
+    trainer_check()
     print(D.divider())
-    print(f"  {D.highlight(' KORE v0.4 ', D.Color.BG_CYAN, D.Color.BLACK)} "
-          f"{D.bold('Interactive Shell')}")
+    print(f"  {D.highlight(' KORE v0.5 ', D.Color.BG_CYAN, D.Color.BLACK)} "
+          f"{D.bold('Autonomous Reflex Engine')}")
     print(D.divider())
+    tag = "trainer on" if trainer_running() else "trainer off"
     print(f"  {D.dim('Session:')} {D.bold(sid)}  "
-          f"{D.dim('| /help for commands | exit to quit')}\n")
+          f"{D.dim('Type /help · /train · exit')}")
+    print(f"  {D.dim('Trainer:')} {D.color(tag, D.Color.GREEN if trainer_running() else D.Color.GRAY)}"
+          f"  {D.dim('KB:')} {D.bold(str(kb_entry_count()))}\n")
 
     while True:
         try:
-            user_input = input(f"  {D.Color.CYAN}kore [{sid[:4]}]{D.Style.RESET} ").strip()
+            user_input = input(f"  {D.Color.CYAN}❯{D.Style.RESET} ").strip()
             if not user_input:
                 continue
             if user_input.lower() in ("exit", "quit", "q"):
-                print(f"\n  {D.badge_info('Shutdown')} Session {sid} preserved. Goodbye.\n")
+                print(f"\n  {D.badge_info('Bye')} Session {sid} saved.\n")
                 break
             if user_input.startswith("/"):
                 handle_command(user_input, memory)
@@ -365,7 +369,7 @@ def interactive_mode():
             run_engine(user_input, memory=memory)
             print()
         except (KeyboardInterrupt, EOFError):
-            print(f"\n  {D.badge_info('Shutdown')} Goodbye.\n")
+            print(f"\n  {D.badge_info('Bye')} Session {sid} saved.\n")
             break
 
 
@@ -374,19 +378,20 @@ def handle_command(cmd, memory):
     command = parts[0].lower()
 
     if command == "/help":
-        print(f"\n  {D.bold('Slash Commands')}")
+        print(f"\n  {D.bold('Commands')}")
         print(f"  {D.dim('─' * 40)}")
-        for cmd, desc in [
+        for c, d in [
             ("/help", "Show this menu"),
-            ("/session", "Show current session info"),
-            ("/sessions", "List all past sessions"),
-            ("/clear", "Clear current session history"),
-            ("/forget", "Delete the knowledge cache"),
-            ("/stats", "Show memory and cache stats"),
-            ("/history", "Show session event history"),
+            ("/train", "Start/stop background trainer"),
+            ("/session", "Current session info"),
+            ("/sessions", "List all sessions"),
+            ("/history", "Session event log"),
+            ("/stats", "Memory and cache stats"),
+            ("/clear", "Wipe session history"),
+            ("/forget", "Delete knowledge cache"),
             ("exit", "Quit Kore"),
         ]:
-            print(f"  {D.bold(cmd):10} {D.dim(desc)}")
+            print(f"  {D.bold(c):10} {D.dim(d)}")
         print()
 
     elif command == "/session":
@@ -448,6 +453,29 @@ def handle_command(cmd, memory):
         print(f"  {D.dim('Memory folder:')}   {mem_size} bytes")
         print()
 
+    elif command == "/train":
+        subcmd = parts[1] if len(parts) > 1 else ""
+        running = trainer_running()
+        if subcmd in ("stop", "off"):
+            if running:
+                for proc in os.popen("ps aux | grep trainer.py"):
+                    line = proc.strip()
+                    if "trainer.py" in line and "grep" not in line and "def" not in line:
+                        try:
+                            os.kill(int(line.split()[1]), 15)
+                        except:
+                            pass
+                print(f"\n  {D.badge_info('Trainer')} Stopped.\n")
+            else:
+                print(f"\n  {D.dim('Trainer not running.')}\n")
+        else:
+            if running:
+                print(f"\n  {D.color('Trainer is running', D.Color.GREEN)}"
+                      f" {D.dim('- use /train stop to stop')}\n")
+            else:
+                trainer_check()
+                print(f"\n  {D.color('Trainer launched', D.Color.GREEN)}\n")
+
     elif command == "/history":
         events = memory.get_session_events(limit=20)
         if not events:
@@ -463,6 +491,39 @@ def handle_command(cmd, memory):
 
     else:
         print(f"\n  {D.badge_warn('Unknown')} Command not found. Try /help\n")
+
+
+def trainer_running():
+    for proc in os.popen("ps aux | grep trainer.py"):
+        line = proc.strip()
+        if "trainer.py" in line and "grep" not in line and "def" not in line:
+            return True
+    return False
+
+
+def trainer_check():
+    if trainer_running():
+        return
+    pid = os.fork()
+    if pid == 0:
+        os.setsid()
+        script = os.path.join(BASE_DIR, "trainer.py")
+        log = os.path.join(BASE_DIR, "trainer.log")
+        with open(log, "a") as f:
+            os.dup2(f.fileno(), 1)
+            os.dup2(f.fileno(), 2)
+        os.execvp("python3", ["python3", script])
+        os._exit(0)
+
+
+def kb_entry_count():
+    if not os.path.exists(KNOWLEDGE_FILE):
+        return 0
+    try:
+        with open(KNOWLEDGE_FILE) as f:
+            return len(json.load(f))
+    except:
+        return 0
 
 
 def main():
