@@ -168,24 +168,40 @@ Built-in safety systems that cannot be disabled:
 git clone https://github.com/KasishStar/kore.git
 cd kore
 pip install -r requirements.txt
+bash install.sh
 ```
 
 ### Usage
 
-**Interactive mode:**
+After install, just type `kore` anywhere:
+
 ```bash
-python3 kore.py
+kore
 ```
 
 **Single query:**
 ```bash
-python3 kore.py "check my system memory"
-python3 kore.py "explain quantum entanglement"
-python3 kore.py "https://github.com/KasishStar/kore"
+kore "check my system memory"
+kore "explain quantum entanglement"
+kore "https://github.com/KasishStar/kore"
 ```
 
-### Launch Self-Training (Optional)
+**Without install (direct):**
+```bash
+python3 kore.py
+python3 kore.py "what is a black hole"
+```
 
+### Self-Training
+
+Start the background trainer from inside Kore's TUI:
+
+```
+❯ /train
+❯ /train stop
+```
+
+Or start it manually:
 ```bash
 cd kore && nohup python3 trainer.py > trainer.log 2>&1 &
 ```
