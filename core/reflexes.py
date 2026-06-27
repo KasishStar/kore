@@ -12,8 +12,8 @@ class InfantReflexes:
         self.action_verbs = {
             "ls","ps","top","free","list","search","status","ping","ip",
             "run","execute","display","read","open","create","write",
-            "make","build","generate","move","copy",
-            "sort","count","sum","calculate","show","find","check"
+            "make","build","generate","move","copy","download",
+            "sort","count","sum","calculate","show","find","check","ytdlp","yt-dlp"
         }
         self.web_phrases = {
             "search for","search the web","latest news","meaning of",

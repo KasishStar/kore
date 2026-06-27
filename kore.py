@@ -360,7 +360,7 @@ def interactive_mode():
             user_input = input(f"  {D.Color.CYAN}❯{D.Style.RESET} ").strip()
             if not user_input:
                 continue
-            if user_input.lower() in ("exit", "quit", "q"):
+            if user_input.lower() in ("exit", "quit", "q", "/exit"):
                 print(f"\n  {D.badge_info('Bye')} Session {sid} saved.\n")
                 break
             if user_input.startswith("/"):

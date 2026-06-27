@@ -116,8 +116,9 @@ class MemoryManager:
                 if line:
                     try:
                         e = json.loads(line)
-                        s = e.get("session", "?")
-                        sessions.add(s)
+                        s = e.get("session", "")
+                        if s and len(s) == 8:
+                            sessions.add(s)
                     except json.JSONDecodeError:
                         continue
         return sorted(sessions)
