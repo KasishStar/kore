@@ -8,6 +8,7 @@ Zero external dependencies — Python stdlib only.
 import json
 import os
 import re
+import sys
 import time
 import shutil
 import ast
@@ -317,6 +318,15 @@ def process_errors(errors):
                 summary_text = summarize_snippets(snippets)
                 if summary_text:
                     cache_concept(concept, summary_text)
+                    try:
+                        sys.path.insert(0, BASE)
+                        from core.learner import IncrementalLearner
+                        learner = IncrementalLearner()
+                        learner.fit()
+                        learner.add_document(concept, summary_text)
+                        log(f"  Retrained TF-IDF model")
+                    except Exception as e:
+                        log(f"  TF-IDF retrain skipped: {e}")
                 else:
                     log(f"  No summary generated from search results")
             except Exception as e:

@@ -19,6 +19,7 @@ from core.guardian import EthicalGuardian
 from core.memory import MemoryManager
 from core.display import DisplayEngine as D
 from core.synthesizer import MarkovSynthesizer
+from core.learner import IncrementalLearner
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 KNOWLEDGE_FILE = os.path.join(BASE_DIR, "knowledge_base.json")
@@ -53,7 +54,22 @@ def _summarize(snippets, max_sentences=3):
     return " ".join(result) if result else None
 
 
+_learner = None
+
+
+def get_learner():
+    global _learner
+    if _learner is None:
+        _learner = IncrementalLearner()
+        _learner.fit()
+    return _learner
+
+
 def check_knowledge_cache(query):
+    learner = get_learner()
+    match = learner.predict(query, threshold=0.08)
+    if match:
+        return match
     if not os.path.exists(KNOWLEDGE_FILE):
         return None
     try:
@@ -61,12 +77,10 @@ def check_knowledge_cache(query):
             kb = json.load(f)
     except (json.JSONDecodeError, Exception):
         return None
-
     q = query.lower().strip()
     cached = kb.get(q)
     if cached:
         return cached
-
     best_match = None
     best_score = 0.0
     for concept, summary in kb.items():
@@ -77,7 +91,6 @@ def check_knowledge_cache(query):
         if score > best_score:
             best_score = score
             best_match = summary
-
     if best_score >= SEMANTIC_THRESHOLD and best_match:
         return best_match
     return None
@@ -181,7 +194,11 @@ def run_engine(goal_prompt, memory=None):
             if action["type"] == "chat_unknown":
                 print(f"\n  {D.badge_arrow('Learning')} Searching the web...")
                 results = web.search(goal_prompt)
-                snippets = [r.get("snippet", r.get("title", "")) for r in results if r.get("snippet") or r.get("title")]
+                snippets = []
+                for r in results:
+                    text = r.get("snippet") or r.get("title") or ""
+                    if text.strip():
+                        snippets.append(text)
                 summary = _summarize(snippets) if snippets else None
                 if summary:
                     concept = " ".join(re.findall(r"[A-Za-z0-9']+", goal_prompt.lower()))[:120]
@@ -195,6 +212,7 @@ def run_engine(goal_prompt, memory=None):
                         os.makedirs(os.path.dirname(KNOWLEDGE_FILE), exist_ok=True)
                         with open(KNOWLEDGE_FILE, "w") as f:
                             json.dump(kb, f, indent=2)
+                        get_learner().add_document(concept, summary)
                     synth = get_synthesizer()
                     synth.build()
                     response = synth.generate(topic=goal_prompt) or summary
