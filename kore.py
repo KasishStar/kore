@@ -387,6 +387,7 @@ def handle_command(cmd, memory):
             ("/sessions", "List all sessions"),
             ("/history", "Session event log"),
             ("/stats", "Memory and cache stats"),
+            ("/switch", "Switch to a session by ID"),
             ("/clear", "Wipe session history"),
             ("/forget", "Delete knowledge cache"),
             ("exit", "Quit Kore"),
@@ -415,6 +416,17 @@ def handle_command(cmd, memory):
                 marker = "→" if s == memory.session_id else " "
                 print(f"  {marker} {s}")
             print()
+
+    elif command == "/switch":
+        if len(parts) < 2:
+            print(f"\n  {D.dim('Usage: /switch <session_id>')}")
+            print(f"  {D.dim('Use /sessions to list available sessions.')}\n")
+        else:
+            sid = parts[1]
+            if memory.switch_session(sid):
+                print(f"\n  {D.color('Switched to session', D.Color.GREEN)} {D.bold(sid)}\n")
+            else:
+                print(f"\n  {D.dim('Already on session')} {sid}\n")
 
     elif command == "/clear":
         memory.clear_session()

@@ -32,6 +32,12 @@ class MemoryManager:
                 "user_preferences": {}, "project_facts": {}, "learned_patterns": []
             })
 
+    def switch_session(self, session_id):
+        old_file = self.episodic_file
+        self.session_id = session_id
+        self.episodic_file = os.path.join(self.memory_dir, f"history_{session_id}.jsonl")
+        return old_file != self.episodic_file
+
     def _write_json(self, path, data):
         with open(path, "w") as f:
             json.dump(data, f, indent=2)
