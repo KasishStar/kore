@@ -205,6 +205,28 @@ class InfantReflexes:
         )
         return mutated
 
+    def _extract_command(self, objective):
+        import subprocess
+        aliases = {"ytdlp": "yt-dlp", "ytdpl": "yt-dlp"}
+        words = objective.strip().split()
+        for w in words:
+            name = w.strip("?!.,;:\"'").lower()
+            candidates = {name, name.replace("-", ""), name.replace("_", "")}
+            if name in aliases:
+                candidates.add(aliases[name])
+            for variant in candidates:
+                try:
+                    r = subprocess.run(["which", variant], capture_output=True, text=True, timeout=2)
+                    if r.returncode == 0 and r.stdout.strip():
+                        skip = {"can", "you", "please", "the", "a", "an", "run", "execute", "command", "and", "to", "for", "my", "in", "with", "me", "i", "want", "do", "does", "will", "would", "could", "should", "of", "this", "that", "is", "it", "on", "at", "by"}
+                        remaining = " ".join(x for x in words if x.lower() not in skip)
+                        for wrong, right in aliases.items():
+                            remaining = remaining.replace(wrong, right)
+                        return remaining.strip()
+                except:
+                    pass
+        return None
+
     def mutate_hypotheses(self, context, failure_log=None):
         obj = context["objective"]
         intent = self.analyze_intent(obj)
@@ -245,7 +267,14 @@ class InfantReflexes:
         if "whole system" in obj.lower() or "everywhere" in obj.lower(): best = "system_search"
         elif "ram" in ow or "memory" in ow or "cpu" in ow: best = "system_monitor"
         elif "net" in ow or "ping" in ow or "ip" in ow: best = "network_status"
-        elif scores[best] == 0.0: best = "file_io"
+
+        hypotheses = []
+        if scores[best] == 0.0:
+            cmd = self._extract_command(objective)
+            if cmd:
+                hypotheses.append({"type": "terminal", "payload": cmd, "rank": 1})
+                return hypotheses
+            return [{"type": "web_search", "payload": obj, "rank": 1}]
 
         hypotheses = []
         for idx, payload in enumerate(self.motor_skills[best]):
