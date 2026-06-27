@@ -50,7 +50,7 @@ class KorePersona:
         obj = user_input.lower()
         words = set(obj.split())
         if any(p in obj for p in ["who are you", "what are you", "purpose"]):
-            return "Kashish is asking about my identity — I should introduce myself clearly."
+            return "Kasish is asking about my identity — I should introduce myself clearly."
         if any(p in obj for p in ["how are you", "status", "you doing"]):
             return "They're checking on me. I'll confirm everything is nominal."
         if any(p in obj for p in ["search", "lookup", "google"]) or words & {"find", "weather", "news"}:
@@ -78,7 +78,7 @@ class KorePersona:
 
     def format_response(self, text, tone="neutral"):
         if tone == "frustrated":
-            prefix = f"\n{D.Color.CYAN}I hear you, Kashish — let's work through this together.{D.Style.RESET}\n"
+            prefix = f"\n{D.Color.CYAN}I hear you, Kasish — let's work through this together.{D.Style.RESET}\n"
         elif tone == "urgent":
             prefix = f"\n{D.Color.YELLOW}On it. Moving fast.{D.Style.RESET}\n"
         elif tone == "happy":
@@ -98,7 +98,7 @@ class KorePersona:
             f"active. No profanity, no destructive commands.\n"
             f"  {D.Color.GREEN}Memory:{D.Style.RESET} 3-layer architecture "
             f"online (working, episodic, semantic).\n\n"
-            f"  {D.Color.GRAY}{D.italic('How can I assist you today, Kashish?')}"
+            f"  {D.Color.GRAY}{D.italic('How can I assist you today, Kasish?')}"
             f"{D.Style.RESET}"
         )
 

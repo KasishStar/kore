@@ -6,7 +6,7 @@ setup(
     description="Zero-knowledge autonomous reflex agent that searches, caches, synthesizes, and self-improves",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    author="Kashish",
+    author="Kasish",
     url="https://github.com/kashish/kore",
     packages=find_packages(),
     include_package_data=True,

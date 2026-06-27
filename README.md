@@ -327,4 +327,4 @@ MIT License — free to use, modify, and distribute. See [LICENSE](LICENSE).
 
 ## About
 
-Built by [Kashish](https://github.com/KasishStar). Kore is an exploration of what's possible with minimal dependencies and maximum constraints — proving that useful local intelligence doesn't require a million-dollar cluster.
+Built by [Kasish](https://github.com/KasishStar). Kore is an exploration of what's possible with minimal dependencies and maximum constraints — proving that useful local intelligence doesn't require a million-dollar cluster.
