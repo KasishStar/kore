@@ -127,6 +127,24 @@ class WebReflex:
         except Exception as e:
             return [{"title": "Search Error", "snippet": f"Search failed: {e}", "url": ""}]
 
+    def fetch_url(self, url):
+        """Fetch and extract readable text from a specific URL."""
+        try:
+            headers = {"User-Agent": self.user_agent}
+            resp = requests.get(url, headers=headers, timeout=15)
+            resp.raise_for_status()
+            import re
+            text = resp.text
+            for tag in ["script", "style", "nav", "footer", "header", "noscript"]:
+                text = re.sub(f'<{tag}[^>]*>.*?</{tag}>', '', text, flags=re.DOTALL)
+            text = re.sub(r'<[^>]+>', ' ', text)
+            text = re.sub(r'\s+', ' ', text).strip()
+            lines = [l.strip() for l in text.split('\n') if l.strip()]
+            readable = [l for l in lines if len(l) > 40][:30]
+            return "\n".join(readable) if readable else "No readable content found."
+        except Exception as e:
+            return f"Failed to fetch URL: {e}"
+
     def format_results(self, results):
         """Formats search results into a clean readable block."""
         lines = []

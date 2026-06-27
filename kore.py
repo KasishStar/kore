@@ -7,6 +7,8 @@ and formatted terminal output.
 
 import sys
 import os
+import json
+import difflib
 import subprocess
 from core.reflexes import InfantReflexes
 from core.persona import KorePersona
@@ -15,6 +17,70 @@ from core.websearch import WebReflex
 from core.guardian import EthicalGuardian
 from core.memory import MemoryManager
 from core.display import DisplayEngine as D
+from core.synthesizer import MarkovSynthesizer
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+KNOWLEDGE_FILE = os.path.join(BASE_DIR, "knowledge_base.json")
+CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
+
+CONFIG = {}
+if os.path.exists(CONFIG_FILE):
+    try:
+        with open(CONFIG_FILE, "r") as f:
+            CONFIG = json.load(f)
+    except (json.JSONDecodeError, Exception):
+        pass
+
+SEMANTIC_THRESHOLD = CONFIG.get("kore", {}).get("semantic_threshold", 0.35)
+MAX_CYCLES = CONFIG.get("kore", {}).get("max_cycles", 4)
+SANDBOX_TIMEOUT = CONFIG.get("kore", {}).get("sandbox_timeout", 10)
+
+
+def check_knowledge_cache(query):
+    if not os.path.exists(KNOWLEDGE_FILE):
+        return None
+    try:
+        with open(KNOWLEDGE_FILE, "r") as f:
+            kb = json.load(f)
+    except (json.JSONDecodeError, Exception):
+        return None
+
+    q = query.lower().strip()
+    cached = kb.get(q)
+    if cached:
+        return cached
+
+    best_match = None
+    best_score = 0.0
+    for concept, summary in kb.items():
+        words = concept.split()
+        if any(w in q for w in words if len(w) > 3) and any(w in concept for w in q.split() if len(w) > 3):
+            return summary
+        score = difflib.SequenceMatcher(None, q, concept).ratio()
+        if score > best_score:
+            best_score = score
+            best_match = summary
+
+    if best_score >= SEMANTIC_THRESHOLD and best_match:
+        return best_match
+    return None
+
+
+_synthesizer = None
+
+
+def get_synthesizer():
+    global _synthesizer
+    if _synthesizer is None:
+        sc = CONFIG.get("synthesizer", {})
+        _synthesizer = MarkovSynthesizer(
+            depth=sc.get("markov_depth", 2),
+            max_sentences=sc.get("max_sentences", 4),
+            min_sentences=sc.get("min_sentences", 2),
+            min_words=sc.get("min_words_fallback", 10),
+        )
+        _synthesizer.build()
+    return _synthesizer
 
 
 def run_engine(goal_prompt, memory=None):
@@ -26,11 +92,9 @@ def run_engine(goal_prompt, memory=None):
     if memory is None:
         memory = MemoryManager()
 
-    # ── BUILD CONTEXT FROM MEMORY ───────────────────────────────
     memory.set_working_context(objective=goal_prompt, cycle=0)
     context_prompt = memory.build_context_prompt(goal_prompt)
 
-    # ── GUARDIAN CHECK ──────────────────────────────────────────
     tone = guardian.analyze_tone(goal_prompt)
     is_safe, reason, _ = guardian.validate_action(
         {"type": "chat", "payload": goal_prompt}, user_input=goal_prompt
@@ -39,24 +103,39 @@ def run_engine(goal_prompt, memory=None):
         print(f"\n{D.badge_error('Blocked')} {reason}")
         return
 
-    # ── HEADER ──────────────────────────────────────────────────
+    cached = check_knowledge_cache(goal_prompt)
+    if cached:
+        synth = get_synthesizer()
+        response = synth.generate(topic=goal_prompt) or cached
+        label = D.colorize('Synthesized', D.Color.MAGENTA) if response != cached else D.colorize('Knowledge Base', D.Color.GREEN)
+        tag = D.dim('(generated)') if response != cached else D.dim('(cached)')
+        print(D.divider())
+        print(f"  {D.highlight(' KORE v0.3 ', D.Color.BG_CYAN, D.Color.BLACK)} "
+              f"{D.bold('Zero-Knowledge Autonomous Agent')}")
+        print(D.divider())
+        thought = persona.draft_thought(goal_prompt)
+        print(f"\n  {persona.format_thought(thought)}")
+        print(f"\n  {D.dim('Objective:')} {D.bold(goal_prompt)}")
+        print(f"\n  {label} {tag}")
+        print(f"\n  {response}")
+        print(D.divider())
+        if memory:
+            memory.store_episodic(goal_prompt, response)
+        return
+
     print(D.divider())
     print(f"  {D.highlight(' KORE v0.3 ', D.Color.BG_CYAN, D.Color.BLACK)} "
           f"{D.bold('Zero-Knowledge Autonomous Agent')}")
     print(D.divider())
 
-    tone = guardian.analyze_tone(goal_prompt)
-    print(persona.get_validation())
+    thought = persona.draft_thought(goal_prompt)
+    print(f"\n  {persona.format_thought(thought)}")
+
     print(f"\n  {D.dim('Objective:')} {D.bold(goal_prompt)}")
 
-    if tone != "neutral":
-        empathy = guardian.get_empathetic_prefix(tone)
-        print(f"  {D.Color.YELLOW}{empathy.strip()}{D.Style.RESET}")
-
-    # ── MAIN LOOP ───────────────────────────────────────────────
     solved = False
     cycle = 1
-    max_cycles = 4
+    max_cycles = MAX_CYCLES
     last_error = None
 
     while not solved and cycle <= max_cycles:
@@ -81,17 +160,14 @@ def run_engine(goal_prompt, memory=None):
             print(f"\n  {D.badge_error('Blocked')} {reason}")
             break
 
-        # ── CHAT PATH ──────────────────────────────────────────
         if action["type"] in ("chat_internal", "chat_unknown"):
-            response = persona.handle_philosophical_chat(
-                action["payload"], action["type"]
-            )
-            print(response)
-            memory.log_event("chat", f"Responded to: {goal_prompt[:60]}")
+            response = persona.handle_chat(action["payload"], action["type"])
+            print(persona.format_response(response, tone))
+            event_type = "chat_unknown" if action["type"] == "chat_unknown" else "chat"
+            memory.log_event(event_type, f"Responded to: {goal_prompt[:60]}")
             solved = True
             break
 
-        # ── WEB SEARCH PATH ────────────────────────────────────
         if action["type"] == "web_search":
             query = action["payload"]
             print(f"\n  {D.badge_arrow('Web Search')} {D.italic(query)}")
@@ -102,10 +178,19 @@ def run_engine(goal_prompt, memory=None):
             solved = True
             break
 
-        # ── CODE GENERATION PATH ───────────────────────────────
+        if action["type"] == "fetch_url":
+            url = action["payload"]
+            print(f"\n  {D.badge_arrow('Fetch URL')} {D.italic(url)}")
+            content = web.fetch_url(url)
+            print(f"\n  {D.colorize('Page Content', D.Color.GREEN)}")
+            print(f"\n  {content[:2000]}")
+            memory.log_event("fetch", f"Fetched: {url[:60]}")
+            solved = True
+            break
+
         if action["type"] == "execute_code":
             target_file = action.get("file", "kore_sandbox.py")
-            print(f"\n  {D.badge_arrow('Code')} Generating → {D.bold(target_file)}")
+            print(f"\n  {D.badge_arrow('Code')} Generating -> {D.bold(target_file)}")
             memory.log_event("code_gen", f"Writing: {target_file}")
 
             with open(target_file, "w") as f:
@@ -119,7 +204,7 @@ def run_engine(goal_prompt, memory=None):
                     ["python3", target_file],
                     capture_output=True,
                     text=True,
-                    timeout=10
+                    timeout=SANDBOX_TIMEOUT
                 )
                 if result.returncode == 0:
                     print(persona.get_success_handler(result.stdout))
@@ -127,15 +212,15 @@ def run_engine(goal_prompt, memory=None):
                     solved = True
                 else:
                     last_error = result.stderr or "Non-zero exit code."
-                    print(persona.get_failure_handler(last_error))
+                    print(persona.get_failure_handler(last_error, cycle))
                     memory.log_event("error", last_error[:100], success=False)
             except subprocess.TimeoutExpired:
-                last_error = "Execution timed out (>10s)."
-                print(persona.get_failure_handler(last_error))
+                last_error = f"Execution timed out (>{SANDBOX_TIMEOUT}s)."
+                print(persona.get_failure_handler(last_error, cycle))
                 memory.log_event("error", last_error, success=False)
             except Exception as e:
                 last_error = str(e)
-                print(persona.get_failure_handler(last_error))
+                print(persona.get_failure_handler(last_error, cycle))
                 memory.log_event("error", str(e)[:100], success=False)
 
             if os.path.exists(target_file):
@@ -144,7 +229,6 @@ def run_engine(goal_prompt, memory=None):
             cycle += 1
             continue
 
-        # ── TERMINAL COMMAND PATH ──────────────────────────────
         print(f"\n  {D.badge_arrow('Command')} {D.dim(action['payload'])}")
         memory.log_event("terminal", f"Running: {action['payload'][:60]}")
 
@@ -154,7 +238,7 @@ def run_engine(goal_prompt, memory=None):
                 shell=True,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=SANDBOX_TIMEOUT
             )
             if result.returncode == 0:
                 output = result.stdout.strip()
@@ -166,20 +250,19 @@ def run_engine(goal_prompt, memory=None):
                 solved = True
             else:
                 last_error = result.stderr or f"Exit code: {result.returncode}"
-                print(persona.get_failure_handler(last_error))
+                print(persona.get_failure_handler(last_error, cycle))
                 memory.log_event("error", last_error[:100], success=False)
         except subprocess.TimeoutExpired:
-            last_error = "Command timed out (>10s)."
-            print(persona.get_failure_handler(last_error))
+            last_error = f"Command timed out (>{SANDBOX_TIMEOUT}s)."
+            print(persona.get_failure_handler(last_error, cycle))
             memory.log_event("error", last_error, success=False)
         except Exception as e:
             last_error = str(e)
-            print(persona.get_failure_handler(last_error))
+            print(persona.get_failure_handler(last_error, cycle))
             memory.log_event("error", str(e)[:100], success=False)
 
         cycle += 1
 
-    # ── CLEANUP ─────────────────────────────────────────────────
     memory.set_working_context(status="complete" if solved else "failed")
     memory.clear_working_context()
 
@@ -219,9 +302,13 @@ def interactive_mode():
             break
 
 
-if __name__ == "__main__":
+def main():
     if len(sys.argv) > 1:
         prompt = " ".join(sys.argv[1:])
         run_engine(prompt)
     else:
         interactive_mode()
+
+
+if __name__ == "__main__":
+    main()

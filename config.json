@@ -1,0 +1,18 @@
+{
+  "trainer": {
+    "poll_interval_seconds": 30,
+    "max_patch_words": 500,
+    "enabled": true
+  },
+  "synthesizer": {
+    "markov_depth": 2,
+    "max_sentences": 4,
+    "min_sentences": 2,
+    "min_words_fallback": 10
+  },
+  "kore": {
+    "max_cycles": 4,
+    "semantic_threshold": 0.35,
+    "sandbox_timeout": 10
+  }
+}

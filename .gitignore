@@ -1,4 +1,14 @@
+knowledge_base.json
+trainer.log
+patches/
+.kore_memory/
 __pycache__/
 *.pyc
-kore_sandbox.py
-sandbox_runtime.py
+*.pyo
+*.bak
+.pytest_cache/
+.vscode/
+.idea/
+*.egg-info/
+dist/
+build/

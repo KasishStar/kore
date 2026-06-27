@@ -105,15 +105,14 @@ class EthicalGuardian:
             if self.check_hate_speech(payload):
                 return False, f"Blocked by {self.name}: Hate speech detected.", action
 
-        if action_type in ("chat_internal", "chat_unknown"):
-            if self.check_profanity(payload):
-                sanitized = self.sanitize_text(payload)
-                action["payload"] = sanitized
-                return True, "Profanity sanitized.", action
-            if self.check_hate_speech(payload):
-                return False, f"Blocked by {self.name}: Hate speech detected.", action
-
         if user_input:
+            ui = user_input.lower()
+            destroy_phrases = ["delete my", "remove my", "destroy my", "erase my",
+                               "wipe my", "delete all", "remove all", "format"]
+            if any(p in ui for p in destroy_phrases) and any(w in ui for w in ["home", "root", "system", "directory"]):
+                return False, f"Blocked by {self.name}: Potentially destructive request detected.", action
+            if re.search(r'\b(curl|wget)\b.*\|\s*(sh|bash)', ui):
+                return False, f"Blocked by {self.name}: Remote code execution attempt detected.", action
             if self.check_profanity(user_input):
                 return False, f"Response blocked: Please use respectful language.", action
             if self.check_hate_speech(user_input):
