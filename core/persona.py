@@ -50,7 +50,7 @@ class KorePersona:
         obj = user_input.lower()
         words = set(obj.split())
         if any(p in obj for p in ["who are you", "what are you", "purpose"]):
-            return "Kasish is asking about my identity — I should introduce myself clearly."
+            return "The user is asking about my identity — I should introduce myself clearly."
         if any(p in obj for p in ["how are you", "status", "you doing"]):
             return "They're checking on me. I'll confirm everything is nominal."
         if any(p in obj for p in ["search", "lookup", "google"]) or words & {"find", "weather", "news"}:
@@ -64,7 +64,7 @@ class KorePersona:
             return "Terminal command requested. I'll validate and execute safely."
         if "what is" in obj and any(c.isdigit() for c in obj):
             return "Math expression detected. I'll evaluate it."
-        study_words = {"algebra", "best", "biology", "calculate", "chemistry", "define", "energy", "equation", "exam", "explain", "file", "force", "formula", "geometry", "gravity", "homekasishkoresandbo", "homekasishkoresandboxpy", "homework", "indent", "indentationerror", "last", "learn", "line", "math", "module", "motion", "movie", "newton", "photosynthesis", "physics", "recent", "responded", "science", "solve", "study", "theorem", "traceback", "velocity"}
+        study_words = {"algebra", "best", "biology", "calculate", "chemistry", "define", "energy", "equation", "exam", "explain", "file", "force", "formula", "geometry", "gravity", "homework", "learn", "line", "math", "motion", "movie", "newton", "photosynthesis", "physics", "science", "solve", "study", "theorem", "velocity"}
         if words & study_words or any(p in obj for p in ["class 10", "class 9"]):
             return "Academic question detected. Let me work through this."
         if words & {"hello", "hi", "hey", "yo", "sup", "howdy"} and len(words) <= 3:
@@ -78,7 +78,7 @@ class KorePersona:
 
     def format_response(self, text, tone="neutral"):
         if tone == "frustrated":
-            prefix = f"\n{D.Color.CYAN}I hear you, Kasish — let's work through this together.{D.Style.RESET}\n"
+            prefix = f"\n{D.Color.CYAN}I hear you — let's work through this together.{D.Style.RESET}\n"
         elif tone == "urgent":
             prefix = f"\n{D.Color.YELLOW}On it. Moving fast.{D.Style.RESET}\n"
         elif tone == "happy":
@@ -98,8 +98,8 @@ class KorePersona:
             f"active. No profanity, no destructive commands.\n"
             f"  {D.Color.GREEN}Memory:{D.Style.RESET} 3-layer architecture "
             f"online (working, episodic, semantic).\n\n"
-            f"  {D.Color.GRAY}{D.italic('How can I assist you today, Kasish?')}"
-            f"{D.Style.RESET}"
+            f"  {D.Color.GRAY}{D.italic('How can I assist you today?')}"
+        f"{D.Style.RESET}"
         )
 
     def get_failure_handler(self, error_msg, attempt=1):
@@ -160,7 +160,7 @@ class KorePersona:
         if words & {"status", "up", "footprint", "health", "memory", "systems"}:
             selected.append(self.thought_pillars["status"])
 
-        edu_words = {"algebra", "best", "biology", "calculate", "chemistry", "define", "energy", "equation", "exam", "explain", "file", "force", "formula", "geometry", "gravity", "homekasishkoresandbo", "homekasishkoresandboxpy", "homework", "indent", "indentationerror", "last", "learn", "line", "math", "module", "motion", "movie", "newton", "photosynthesis", "physics", "recent", "responded", "science", "solve", "study", "theorem", "traceback", "velocity"}
+        edu_words = {"algebra", "best", "biology", "calculate", "chemistry", "define", "energy", "equation", "exam", "explain", "file", "force", "formula", "geometry", "gravity", "homework", "learn", "line", "math", "motion", "movie", "newton", "photosynthesis", "physics", "science", "solve", "study", "theorem", "velocity"}
         if words & edu_words or any(p in text for p in edu_words):
             return (
                 f"\n{D.Color.CYAN}{D.bold(self.name)}{D.Style.RESET}: "
