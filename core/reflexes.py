@@ -124,7 +124,7 @@ class InfantReflexes:
         if any(p in o for p in self.web_phrases): return "web_search"
         code_words = {"python","code","script","function","class","program",
                       "write","generate","create","build","implement"}
-        if w & code_words and not any(p in o for p in ["class 10","class 11","class 12","class 9","10th class"]):
+        if w & code_words:
             return "code_generation"
         if "system info" in o or "system status" in o: return "code_generation"
         if w & self.action_verbs: return "terminal"

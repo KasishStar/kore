@@ -56,7 +56,7 @@ class KorePersona:
         if any(p in obj for p in ["search", "lookup", "google"]) or words & {"find", "weather", "news"}:
             return "They want external information. I'll route through WebReflex."
         if any(p in obj for p in ["code", "write", "generate", "script", "python", "function"]) or \
-           ("class" in words and not any(p in obj for p in ["class 10", "class 9"])):
+           "class" in words:
             return "Code generation request. I'll draft and offer self-correction."
         if "system info" in obj or "system status" in obj:
             return "System information request. I'll query the environment."
@@ -65,7 +65,7 @@ class KorePersona:
         if "what is" in obj and any(c.isdigit() for c in obj):
             return "Math expression detected. I'll evaluate it."
         study_words = {"algebra", "best", "biology", "calculate", "chemistry", "define", "energy", "equation", "exam", "explain", "file", "force", "formula", "geometry", "gravity", "homework", "learn", "line", "math", "motion", "movie", "newton", "photosynthesis", "physics", "science", "solve", "study", "theorem", "velocity"}
-        if words & study_words or any(p in obj for p in ["class 10", "class 9"]):
+        if words & study_words:
             return "Academic question detected. Let me work through this."
         if words & {"hello", "hi", "hey", "yo", "sup", "howdy"} and len(words) <= 3:
             return "Greeting received. I'll respond warmly and list my capabilities."
@@ -161,7 +161,7 @@ class KorePersona:
             selected.append(self.thought_pillars["status"])
 
         edu_words = {"algebra", "best", "biology", "calculate", "chemistry", "define", "energy", "equation", "exam", "explain", "file", "force", "formula", "geometry", "gravity", "homework", "learn", "line", "math", "motion", "movie", "newton", "photosynthesis", "physics", "science", "solve", "study", "theorem", "velocity"}
-        if words & edu_words or any(p in text for p in edu_words):
+        if words & edu_words:
             return (
                 f"\n{D.Color.CYAN}{D.bold(self.name)}{D.Style.RESET}: "
                 f"{D.Color.GREEN}I can help with that!{D.Style.RESET} Let me "

@@ -1,25 +1,21 @@
-"""
-Kore Memory System — Three-Layer Architecture
-Layer 1: Working Memory (current task context)
-Layer 2: Episodic Memory (timestamped event log)
-Layer 3: Semantic Memory (persistent user/project facts)
-"""
-
 import json
 import os
 import time
+import uuid
 from datetime import datetime
 
 
 class MemoryManager:
-    def __init__(self, memory_dir=None):
+    def __init__(self, memory_dir=None, session_id=None):
         if memory_dir is None:
             memory_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".kore_memory")
         self.memory_dir = memory_dir
+        self.session_id = session_id or uuid.uuid4().hex[:8]
         os.makedirs(self.memory_dir, exist_ok=True)
 
         self.working_file = os.path.join(self.memory_dir, "current.json")
-        self.episodic_file = os.path.join(self.memory_dir, "history.jsonl")
+        self.episodic_file = os.path.join(self.memory_dir, f"history_{self.session_id}.jsonl")
+        self.global_history = os.path.join(self.memory_dir, "history.jsonl")
         self.semantic_file = os.path.join(self.memory_dir, "facts.json")
 
         self._init_files()
@@ -27,18 +23,13 @@ class MemoryManager:
     def _init_files(self):
         if not os.path.exists(self.working_file):
             self._write_json(self.working_file, {
-                "objective": None,
-                "active_file": None,
-                "last_action": None,
-                "last_error": None,
-                "cycle": 0,
-                "status": "idle"
+                "objective": None, "active_file": None,
+                "last_action": None, "last_error": None,
+                "cycle": 0, "status": "idle"
             })
         if not os.path.exists(self.semantic_file):
             self._write_json(self.semantic_file, {
-                "user_preferences": {},
-                "project_facts": {},
-                "learned_patterns": []
+                "user_preferences": {}, "project_facts": {}, "learned_patterns": []
             })
 
     def _write_json(self, path, data):
@@ -49,24 +40,15 @@ class MemoryManager:
         with open(path, "r") as f:
             return json.load(f)
 
-    # ── LAYER 1: WORKING MEMORY ─────────────────────────────────
-
     def set_working_context(self, objective=None, active_file=None, last_action=None, last_error=None, cycle=None, status=None):
         data = self._read_json(self.working_file)
-        if objective is not None:
-            data["objective"] = objective
-        if active_file is not None:
-            data["active_file"] = active_file
-        if last_action is not None:
-            data["last_action"] = last_action
-        if last_error is not None:
-            data["last_error"] = last_error
-        if cycle is not None:
-            data["cycle"] = cycle
-        if status is not None:
-            data["status"] = status
-        else:
-            data["status"] = "active"
+        if objective is not None: data["objective"] = objective
+        if active_file is not None: data["active_file"] = active_file
+        if last_action is not None: data["last_action"] = last_action
+        if last_error is not None: data["last_error"] = last_error
+        if cycle is not None: data["cycle"] = cycle
+        if status is not None: data["status"] = status
+        else: data["status"] = "active"
         data["updated_at"] = datetime.now().isoformat()
         self._write_json(self.working_file, data)
 
@@ -75,21 +57,17 @@ class MemoryManager:
 
     def clear_working_context(self):
         self._write_json(self.working_file, {
-            "objective": None,
-            "active_file": None,
-            "last_action": None,
-            "last_error": None,
-            "cycle": 0,
-            "status": "idle",
+            "objective": None, "active_file": None,
+            "last_action": None, "last_error": None,
+            "cycle": 0, "status": "idle",
             "updated_at": datetime.now().isoformat()
         })
-
-    # ── LAYER 2: EPISODIC MEMORY ────────────────────────────────
 
     def log_event(self, event_type, summary, details=None, success=True):
         entry = {
             "timestamp": datetime.now().isoformat(),
             "epoch": time.time(),
+            "session": self.session_id,
             "type": event_type,
             "summary": summary,
             "details": details or {},
@@ -97,8 +75,10 @@ class MemoryManager:
         }
         with open(self.episodic_file, "a") as f:
             f.write(json.dumps(entry) + "\n")
+        with open(self.global_history, "a") as f:
+            f.write(json.dumps(entry) + "\n")
 
-    def get_recent_events(self, limit=10, event_type=None):
+    def get_session_events(self, limit=50, event_type=None):
         if not os.path.exists(self.episodic_file):
             return []
         events = []
@@ -114,6 +94,9 @@ class MemoryManager:
             events = [e for e in events if e.get("type") == event_type]
         return events[-limit:]
 
+    def get_recent_events(self, limit=10, event_type=None):
+        return self.get_session_events(limit=limit, event_type=event_type)
+
     def get_last_error(self):
         events = self.get_recent_events(limit=5, event_type="error")
         if events:
@@ -123,16 +106,40 @@ class MemoryManager:
     def get_error_history(self, limit=20):
         return self.get_recent_events(limit=limit, event_type="error")
 
-    # ── LAYER 3: SEMANTIC MEMORY ────────────────────────────────
+    def list_sessions(self):
+        sessions = set()
+        if not os.path.exists(self.global_history):
+            return []
+        with open(self.global_history, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        e = json.loads(line)
+                        s = e.get("session", "?")
+                        sessions.add(s)
+                    except json.JSONDecodeError:
+                        continue
+        return sorted(sessions)
+
+    def clear_session(self):
+        if os.path.exists(self.episodic_file):
+            os.remove(self.episodic_file)
+        self.clear_working_context()
+
+    def clear_all_sessions(self):
+        for f in os.listdir(self.memory_dir):
+            if f.startswith("history_") and f.endswith(".jsonl"):
+                os.remove(os.path.join(self.memory_dir, f))
+        if os.path.exists(self.global_history):
+            os.remove(self.global_history)
+        self.clear_working_context()
 
     def learn_fact(self, category, key, value):
         data = self._read_json(self.semantic_file)
         if category not in data:
             data[category] = {}
-        data[category][key] = {
-            "value": value,
-            "learned_at": datetime.now().isoformat()
-        }
+        data[category][key] = {"value": value, "learned_at": datetime.now().isoformat()}
         self._write_json(self.semantic_file, data)
         self.log_event("learn", f"Learned: {category}.{key} = {value}")
 
@@ -150,10 +157,8 @@ class MemoryManager:
     def learn_pattern(self, pattern, context, success=True):
         data = self._read_json(self.semantic_file)
         data["learned_patterns"].append({
-            "pattern": pattern,
-            "context": context,
-            "success": success,
-            "learned_at": datetime.now().isoformat()
+            "pattern": pattern, "context": context,
+            "success": success, "learned_at": datetime.now().isoformat()
         })
         self._write_json(self.semantic_file, data)
 
@@ -166,14 +171,10 @@ class MemoryManager:
                 return p
         return None
 
-    # ── COMPREHENSIVE RETRIEVAL ─────────────────────────────────
-
     def build_context_prompt(self, user_input):
-        """Builds a rich context string for the agent from all memory layers."""
         working = self.get_working_context()
         recent = self.get_recent_events(limit=5)
         facts = self.get_all_facts()
-
         lines = []
         lines.append("=== WORKING CONTEXT ===")
         if working.get("objective"):
@@ -182,27 +183,22 @@ class MemoryManager:
             lines.append(f"  Active File: {working['active_file']}")
         if working.get("last_error"):
             lines.append(f"  Last Error: {working['last_error']}")
-
         lines.append("\n=== RECENT HISTORY ===")
         for e in recent[-3:]:
             status = "✓" if e.get("success") else "✗"
             lines.append(f"  [{status}] {e.get('type','?')}: {e.get('summary','')}")
-
         pref = facts.get("user_preferences", {})
         if pref:
             lines.append("\n=== USER PREFERENCES ===")
             for k, v in pref.items():
                 val = v.get("value", v) if isinstance(v, dict) else v
                 lines.append(f"  • {k}: {val}")
-
         proj = facts.get("project_facts", {})
         if proj:
             lines.append("\n=== PROJECT FACTS ===")
             for k, v in proj.items():
                 val = v.get("value", v) if isinstance(v, dict) else v
                 lines.append(f"  • {k}: {val}")
-
         lines.append(f"\n=== NEW INPUT ===")
         lines.append(f"  {user_input}")
-
         return "\n".join(lines)

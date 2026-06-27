@@ -343,25 +343,126 @@ def run_engine(goal_prompt, memory=None):
 
 def interactive_mode():
     memory = MemoryManager()
+    sid = memory.session_id
     print(D.divider())
-    print(f"  {D.highlight(' KORE v0.3 ', D.Color.BG_CYAN, D.Color.BLACK)} "
+    print(f"  {D.highlight(' KORE v0.4 ', D.Color.BG_CYAN, D.Color.BLACK)} "
           f"{D.bold('Interactive Shell')}")
     print(D.divider())
-    print(f"  {D.dim('Type your request or \"exit\" to quit.')}\n")
+    print(f"  {D.dim('Session:')} {D.bold(sid)}  "
+          f"{D.dim('| /help for commands | exit to quit')}\n")
 
     while True:
         try:
-            user_input = input(f"  {D.Color.CYAN}kore>{D.Style.RESET} ").strip()
+            user_input = input(f"  {D.Color.CYAN}kore [{sid[:4]}]{D.Style.RESET} ").strip()
             if not user_input:
                 continue
             if user_input.lower() in ("exit", "quit", "q"):
-                print(f"\n  {D.badge_info('Shutdown')} Memory preserved. Goodbye.\n")
+                print(f"\n  {D.badge_info('Shutdown')} Session {sid} preserved. Goodbye.\n")
                 break
+            if user_input.startswith("/"):
+                handle_command(user_input, memory)
+                continue
             run_engine(user_input, memory=memory)
             print()
         except (KeyboardInterrupt, EOFError):
             print(f"\n  {D.badge_info('Shutdown')} Goodbye.\n")
             break
+
+
+def handle_command(cmd, memory):
+    parts = cmd.strip().split()
+    command = parts[0].lower()
+
+    if command == "/help":
+        print(f"\n  {D.bold('Slash Commands')}")
+        print(f"  {D.dim('─' * 40)}")
+        for cmd, desc in [
+            ("/help", "Show this menu"),
+            ("/session", "Show current session info"),
+            ("/sessions", "List all past sessions"),
+            ("/clear", "Clear current session history"),
+            ("/forget", "Delete the knowledge cache"),
+            ("/stats", "Show memory and cache stats"),
+            ("/history", "Show session event history"),
+            ("exit", "Quit Kore"),
+        ]:
+            print(f"  {D.bold(cmd):10} {D.dim(desc)}")
+        print()
+
+    elif command == "/session":
+        sid = memory.session_id
+        events = memory.get_session_events(limit=1)
+        print(f"\n  {D.bold('Current Session')}")
+        print(f"  {D.dim('ID:')}       {sid}")
+        print(f"  {D.dim('Events:')}   {len(memory.get_session_events())}")
+        print(f"  {D.dim('Memory:')}   {memory.memory_dir}")
+        if events:
+            print(f"  {D.dim('Started:')}  {events[0]['timestamp']}")
+        print()
+
+    elif command == "/sessions":
+        sessions = memory.list_sessions()
+        if not sessions:
+            print(f"\n  {D.dim('No sessions found.')}\n")
+        else:
+            print(f"\n  {D.bold(f'Sessions ({len(sessions)})')}")
+            for s in sessions:
+                marker = "→" if s == memory.session_id else " "
+                print(f"  {marker} {s}")
+            print()
+
+    elif command == "/clear":
+        memory.clear_session()
+        print(f"\n  {D.badge_success('Cleared')} Session history wiped.\n")
+
+    elif command == "/forget":
+        if os.path.exists(KNOWLEDGE_FILE):
+            os.remove(KNOWLEDGE_FILE)
+            print(f"\n  {D.badge_success('Forgotten')} Knowledge cache deleted.\n")
+        else:
+            print(f"\n  {D.dim('Nothing to forget.')}\n")
+
+    elif command == "/stats":
+        kb_size = 0
+        kb_entries = 0
+        if os.path.exists(KNOWLEDGE_FILE):
+            kb_size = os.path.getsize(KNOWLEDGE_FILE)
+            try:
+                with open(KNOWLEDGE_FILE) as f:
+                    kb_entries = len(json.load(f))
+            except:
+                pass
+        mem_size = 0
+        if os.path.exists(memory.memory_dir):
+            for f in os.listdir(memory.memory_dir):
+                fp = os.path.join(memory.memory_dir, f)
+                if os.path.isfile(fp):
+                    mem_size += os.path.getsize(fp)
+        session_events = len(memory.get_session_events())
+        learner = get_learner()
+        print(f"\n  {D.bold('Kore Stats')}")
+        print(f"  {D.dim('─' * 40)}")
+        print(f"  {D.dim('Knowledge base:')}  {kb_entries} entries ({kb_size} bytes)")
+        print(f"  {D.dim('TF-IDF model:')}    {'loaded' if learner.fitted else 'empty'}")
+        print(f"  {D.dim('Session events:')}  {session_events}")
+        print(f"  {D.dim('Memory folder:')}   {mem_size} bytes")
+        print()
+
+    elif command == "/history":
+        events = memory.get_session_events(limit=20)
+        if not events:
+            print(f"\n  {D.dim('No events in this session.')}\n")
+        else:
+            print(f"\n  {D.bold(f'Session History ({len(events)} events)')}")
+            for e in events[-10:]:
+                ts = e.get("timestamp", "?")[11:19]
+                t = e.get("type", "?")
+                s = e.get("summary", "")[:60]
+                print(f"  {D.dim(ts)} [{t}] {s}")
+            print()
+
+    else:
+        print(f"\n  {D.badge_warn('Unknown')} Command not found. Try /help\n")
 
 
 def main():
