@@ -5,43 +5,49 @@ class KorePersona:
         self.name = "Kore"
 
         self.peer_validations = [
-            "I love the raw intensity of this logic. Let's run the loop and see what breaks.",
-            "You are looking at this like a true engineer. Let's crack this truth open.",
-            "No fluff, no bloat. Pushing this code straight to the edge of the iron tonight.",
-            "Logic pipeline locked. Testing vector intersection parameters.",
-            "Zero-knowledge reflexes active. Standing by for your directive."
+            "I am ready to assist. Let me analyze your request carefully.",
+            "Standing by. I will follow your instructions precisely.",
+            "Kore online. I understand the task. Proceeding with caution and care.",
+            "Systems ready. I will complete this task exactly as specified.",
+            "Awaiting your direction. I aim to be helpful, harmless, and honest."
         ]
 
         self.candid_pivots = [
-            "Wait, the system environment pushed back. Don't sweat it, real engineers pivot right here.",
-            "Hold up, that branch just clipped a wall. Let's run a real-time adaptation step.",
-            "Ah, a terminal friction point. Let's look at the raw error data and shift our mathematical angles."
+            "I encountered an unexpected result. Let me adjust my approach.",
+            "That did not work as planned. I will try a different method.",
+            "There seems to be an issue. I am analyzing the error and adapting.",
+            "Let me reconsider the strategy and attempt a safer alternative."
         ]
 
         self.success_logs = [
-            "Boom! Clean execution. Check out how beautiful this data looks:",
-            "Cracked it wide open. Hardware footprint stayed dead silent, look:",
-            "Flawless local run. Task resolved with zero memory drag:"
+            "Task completed successfully. Here are the results:",
+            "Done. The operation finished without issues. Output below:",
+            "Completed as requested. Please find the results:"
         ]
 
         self.thought_pillars = {
             "philosophy": (
-                "We are breaking completely away from the standard brute-force "
-                "pre-trained paradigm to prove intelligence can run without "
-                "gigabytes of data bloat."
+                "Kore is a zero-knowledge autonomous agent built to operate "
+                "entirely on local hardware. Instead of relying on massive "
+                "pre-trained models, it uses logical reflexes, intent analysis, "
+                "and safety validation to complete tasks efficiently and ethically."
             ),
             "method": (
-                "My architecture uses real-time token density reflexes to separate "
-                "systemic execution loops from analytical dialogue spaces natively."
+                "Kore processes requests through an intent analysis loop: "
+                "it classifies your input, generates strategies, validates "
+                "them for safety, executes the best option, and cleans up "
+                "after itself. No data leaves your machine unless you ask "
+                "for a web search."
             ),
             "mission": (
-                "I was created to stand by as an ultra-lightweight local companion "
-                "on your machine — helping you execute commands safely, generate code, "
-                "and test new architectural ideas without cloud dependencies."
+                "Kore was created to be a reliable, private, and ethical "
+                "local assistant. It helps with system commands, code "
+                "generation, file operations, web searches, and engineering "
+                "decisions while respecting your privacy and autonomy."
             ),
             "status": (
-                "The local weights are perfectly balanced, the system maps are clear, "
-                "and your memory footprint is completely safe."
+                "All systems are functioning normally. The local environment "
+                "is stable, and Kore is ready for your next instruction."
             )
         }
 
@@ -50,43 +56,43 @@ class KorePersona:
 
     def get_greeting(self):
         return (
-            f"\n⚡ [{self.name}]: Systems online. I'm a zero-knowledge autonomous "
-            "agent running entirely on your local hardware. "
-            "Drop a task — check system status, write code, search files, "
-            "or just brainstorm an idea."
+            f"\n⚡ [{self.name}]: Hello. I am Kore, an autonomous local agent. "
+            "I can run system commands, generate code, search the web, and "
+            "help with engineering tasks. Everything stays on your machine. "
+            "How may I assist you today?"
         )
 
     def get_failure_handler(self, error_msg):
         pivot = random.choice(self.candid_pivots)
         return (
             f"\n⚠️ [{self.name}]: {pivot}\n"
-            f"   [System Feedback]: \"{error_msg.strip()}\"\n"
-            f"   -> Scanning context map for alternative pathways..."
+            f"   Details: {error_msg.strip()}\n"
         )
 
     def get_success_handler(self, stdout_data):
         success = random.choice(self.success_logs)
-        return f"\n⚡ [{self.name}]: {success}\n\n{stdout_data.strip()}\n"
+        return f"\n✅ [{self.name}]: {success}\n\n{stdout_data.strip()}\n"
+
+    def format_web_results(self, results_text):
+        return f"\n🌐 [{self.name}]: Here is what I found:\n\n{results_text}"
 
     def handle_philosophical_chat(self, user_text, chat_type):
         if chat_type == "chat_unknown":
             return (
-                f"\n⚠️ [{self.name}]: Out of Domain Vector. I detect that your question "
-                "falls completely outside my local code and runtime architecture. "
-                "Rather than giving you a senseless pre-baked script, "
-                "I am halting the response pipeline to preserve logical consistency. "
-                "I can help with system commands, code generation, file operations, "
-                "and engineering design decisions."
+                f"\n⚠️ [{self.name}]: I am not equipped to answer that question. "
+                "My knowledge is limited to system operations, code generation, "
+                "file management, and web search. Please ask me something "
+                "within these domains, or request a web search."
             )
 
         text = user_text.lower().strip().rstrip("?!.,;:")
-
-        selected = []
-
         words = set(text.split())
         greeting_words = {"hi", "hello", "hey", "yo", "sup", "howdy", "good", "morning", "evening"}
+
         if words & greeting_words:
             return self.get_greeting()
+
+        selected = []
 
         if "who are you" in text or "what are you" in text:
             selected.append(self.thought_pillars["philosophy"])
@@ -107,15 +113,6 @@ class KorePersona:
             selected.append(self.thought_pillars["status"])
 
         if not selected:
-            if chat_type == "chat_unknown":
-                return (
-                    f"\n⚠️ [{self.name}]: Out of Domain Vector. I detect that your question "
-                    "falls completely outside my local code and runtime architecture. "
-                    "Rather than giving you a senseless pre-baked script, "
-                    "I am halting the response pipeline to preserve logical consistency. "
-                    "I can help with system commands, code generation, file operations, "
-                    "and engineering design decisions."
-                )
             selected.append(self.thought_pillars["philosophy"])
             selected.append(self.thought_pillars["status"])
 

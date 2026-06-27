@@ -12,7 +12,13 @@ class InfantReflexes:
             "search", "status", "ping", "ip", "run", "execute", "display",
             "read", "open", "create", "write", "make", "build", "generate",
             "compile", "install", "remove", "delete", "move", "copy",
-            "sort", "count", "sum", "calculate", "compute"
+            "sort", "count", "sum", "calculate", "compute", "lookup"
+        }
+        self.web_search_keywords = {
+            "search for", "lookup", "google", "search the web",
+            "latest news", "current", "weather", "define", "meaning of",
+            "information about", "tell me about", "how to",
+            "who is", "what does", "what was", "what happened",
         }
 
         self.internal_domain_vectors = {
@@ -105,11 +111,29 @@ class InfantReflexes:
         return self.sensory_matrix
 
     def analyze_intent(self, objective):
-        words = set(objective.lower().split())
+        obj_lower = objective.lower()
+        words = set(obj_lower.split())
+
+        internal_questions = {
+            "who are you", "what are you", "how are you", "you doing",
+            "what is your purpose", "why were you created",
+            "how do you work", "how do you run", "what can you do",
+        }
+        if any(p in obj_lower for p in internal_questions):
+            return "chat"
+
+        web_indicators = {"search", "lookup", "google", "define", "meaning",
+                          "current", "latest", "weather", "news about"}
+        if words & web_indicators:
+            return "web_search"
+        if any(kw in obj_lower for kw in self.web_search_keywords):
+            return "web_search"
+
         code_keywords = {"python", "code", "script", "function", "class", "program",
                          "write", "generate", "create", "build", "implement"}
         if words.intersection(code_keywords):
             return "code_generation"
+
         if words.intersection(self.action_verbs):
             return "terminal"
         return "chat"
@@ -182,6 +206,9 @@ class InfantReflexes:
                 "file": self.sandbox_file,
                 "rank": 1
             }]
+
+        if intent == "web_search":
+            return [{"type": "web_search", "payload": objective, "rank": 1}]
 
         scores = {
             k: self.calculate_semantic_closeness(objective, k)

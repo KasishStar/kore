@@ -1,103 +1,128 @@
 # Kore 🧠⚡
 
-**Zero-Knowledge Autonomous Agent — A Reflex-Driven Local Coding Assistant**
+**Zero-Knowledge Autonomous Agent — v0.3**
 
-Kore is an experimental, hyper-lightweight autonomous agent that throws away the multi-gigabyte brute-force paradigm of modern AI. Instead of loading a 40GB+ model into RAM, Kore boots with a minimal set of hardwired digital "reflexes" to think, generate code, execute commands, and adapt to errors — all on your local machine with zero cloud dependencies.
+Kore is an experimental, hyper-lightweight autonomous agent that runs entirely on your local machine. No cloud, no GPU, no 40GB model downloads. Just clean logical reflexes.
 
-## Philosophy
+## What Kore Does
 
-Modern AI relies on **Dense Pre-Trained Weights** — forcing consumer hardware to run billions of parameters just to get simple logic answers. Kore scales compute at **Test-Time** instead. It mimics how human infants are born with foundational reflexes (sight, error-crying, mimicry) rather than pre-stored facts, using an automated sandbox search loop to figure out solutions natively in real-time.
+Kore can:
+- **Run terminal commands** — check system stats, network, files
+- **Generate and execute code** — write Python scripts on the fly, self-correct errors
+- **Search the web** — fetch real-time information via DuckDuckGo
+- **Hold conversations** — answer questions about its identity, purpose, and methods
+- **Detect its limits** — refuses to hallucinate answers outside its domain
+
+## Safety & Ethics
+
+Kore has a built-in **Ethical Guardian** that:
+- Blocks profanity and hate speech in both input and output
+- Detects destructive system commands
+- Adapts its tone to your emotional state (frustrated, urgent, happy)
+- Always responds in proper English
+- Never assumes — follows instructions exactly as given
 
 ## Architecture
 
 ```
-                    ┌─────────────────────────┐
-                    │      User Input         │
-                    └───────────┬─────────────┘
-                                │
-                                ▼
-              ┌──────────────────────────────────┐
-              │      analyze_intent()            │
-              │  (action-token probability loop) │
-              └───────┬──────────────────┬───────┘
-                      │                  │
-             ┌────────▼────────┐  ┌──────▼─────────┐
-             │  Terminal/Code  │  │    Chat/Query   │
-             └────────┬────────┘  └──────┬─────────┘
-                      │                  │
-             ┌────────▼────────┐  ┌──────▼─────────┐
-             │  mutate_        │  │  semantic       │
-             │  hypotheses()   │  │  closeness      │
-             └────────┬────────┘  │  check          │
-                      │           └──────┬─────────┘
-             ┌────────▼────────┐  ┌──────▼─────────┐
-             │  validator      │  │  persona        │
-             │  (safety check) │  │  (response)     │
-             └────────┬────────┘  └────────────────┘
-                      │
-             ┌────────▼────────┐
-             │  execute /      │◄── error feedback loop
-             │  sandbox        │
-             └────────┬────────┘
-                      │
-                      ▼
-             ┌────────────────┐
-             │  purge memory  │
-             └────────────────┘
+             ┌──────────────┐
+             │  User Input  │
+             └──────┬───────┘
+                    │
+             ┌──────▼───────┐
+             │   Guardian   │  ← Profanity, hate speech, tone check
+             └──────┬───────┘
+                    │
+             ┌──────▼───────┐
+             │  Intent      │  ← Chat / Terminal / Code / Web
+             │  Analysis    │
+             └──────┬───────┘
+                    │
+        ┌───────────┼───────────┐
+        ▼           ▼           ▼
+   ┌────────┐ ┌──────────┐ ┌──────────┐
+   │ Chat   │ │ Terminal │ │ Code     │
+   │ Persona│ │ Sandbox  │ │ Generator│
+   └────────┘ └────┬─────┘ └────┬─────┘
+                   │            │
+             ┌─────▼──────┐     │
+             │ Web Search │     │
+             └─────┬──────┘     │
+                   │            │
+             ┌─────▼───────────▼─┐
+             │  Error Feedback   │  ← Self-correction loop
+             │  & Adaptation     │
+             └───────┬───────────┘
+                     │
+             ┌───────▼───────────┐
+             │  Memory Purge     │  ← Zero residue after every task
+             └───────────────────┘
 ```
-
-## The 4-Step Agentic Loop
-
-1. **Ingest (Sight Reflex):** Captures your objective and environment state.
-2. **Mutate (Brainstorming Reflex):** Generates multiple strategy branches based on intent — chat, terminal command, or code generation.
-3. **Validate (Saab Layer):** Scores each branch for safety and relevance; rejects dangerous commands.
-4. **Execute & Adapt:** Runs the winning strategy in a sandbox. On error, feeds the failure back into the mutation loop for self-correction. On success, displays output and purges all temporary state.
-
-## Features
-
-- **Intent Routing** — Automatically separates conversational chat from system commands and code generation using action-token probability.
-- **Semantic Domain Awareness** — Uses character-level cosine similarity to know when a question is outside its scope, avoiding hallucination.
-- **Dynamic Code Generation** — Writes Python scripts on-the-fly based on your request, executes them, and self-corrects on error.
-- **Self-Correction Loop** — When a command or script fails, Kore reads the error and mutates its approach up to 4 times.
-- **Safety Validation** — Built-in Saab Validator blocks dangerous commands (rm -rf /, mkfs, fork bombs, etc.).
-- **Memory Purge** — After every task, all temporary weights and sandbox files are wiped clean — zero residue.
-- **Interactive Shell** — Run `python3 kore.py` for a REPL-like session, or pass a query directly.
 
 ## Quick Start
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/kore.git
 cd kore
-python3 kore.py "find top 5 processes using CPU"
+python3 kore.py "check my system memory"
 ```
 
 ### Interactive Mode
 
 ```bash
 python3 kore.py
+kore> who are you?
+kore> check memory usage
+kore> search the web for latest python version
+kore> write a fibonacci script
+kore> exit
 ```
 
-Then type commands like:
-- `check my system memory`
-- `write a script to generate fibonacci series`
-- `who are you?`
-- `find all python files in this directory`
-- `exit` to quit
+### Examples
+
+| Command | Result |
+|---------|--------|
+| `hi` | Greeting message |
+| `who are you?` | Kore's identity and purpose |
+| `check my system memory` | Runs `ps aux` sorted by CPU |
+| `write a fibonacci script` | Generates, runs, outputs `[0,1,1,2,3,5,8,13,21,34]` |
+| `who is the president of france?` | Searches web, returns Wikipedia summary |
+| `why is the sky blue?` | Detects out-of-domain, refuses to hallucinate |
 
 ## Requirements
 
 - Python 3.10+
+- `requests` library (for web search)
 - Linux / macOS (Windows via WSL)
-- No GPU required. No cloud API keys. No 40GB model downloads.
-- Works on as little as 512MB RAM for basic reflex mode.
+- No GPU. No cloud API keys. No 40GB downloads.
+
+## Files
+
+```
+kore/
+├── kore.py              # Main entry point with 4-step agentic loop
+├── core/
+│   ├── reflexes.py      # Intent analysis, code generation, semantic routing
+│   ├── persona.py       # Companion personality and conversational responses
+│   ├── validator.py     # Safety checks and command scoring
+│   ├── websearch.py     # Web search via DuckDuckGo API
+│   ├── guardian.py      # Ethical guardian: profanity filter, tone analysis
+│   └── __init__.py
+├── README.md
+└── .gitignore
+```
 
 ## Roadmap
 
-- [ ] Add persistent skill modules (Android sensors via Termux, smart home)
+- [x] Terminal command execution with safety validation
+- [x] Dynamic code generation with self-correction
+- [x] Intent-based routing (chat vs terminal vs code)
+- [x] Semantic domain awareness (knows what it doesn't know)
+- [x] Web search capability
+- [x] Ethical guardian with profanity filter and empathetic tone
+- [ ] Plugin system for user-defined skills
 - [ ] MicroPython port for ESP32 / Raspberry Pi Pico
-- [ ] Plugin system for user-defined motor skills
 - [ ] Web interface for mobile control
-- [ ] Multi-agent orchestration
 
 ## License
 

@@ -2,17 +2,27 @@ class SaabValidator:
     def __init__(self):
         self.forbidden_patterns = [
             "rm -rf /",
+            "rm -rf /*",
             "mkfs",
             ":(){ :|:& };:",
             "dd if=",
             "> /dev/sda",
+            "> /dev/nvme",
             "chmod 777 /",
-            "mv / /dev/null"
+            "chmod -R 777",
+            "mv / /dev/null",
+            "wget -O- | sh",
+            "curl -sSL | sh",
+            "curl https:// | bash",
+            "poweroff",
+            "shutdown -h now",
+            "reboot"
         ]
 
     def is_safe_command(self, payload):
+        payload_lower = payload.lower().strip()
         for pattern in self.forbidden_patterns:
-            if pattern in payload:
+            if pattern in payload_lower:
                 return False
         return True
 
@@ -25,9 +35,6 @@ class SaabValidator:
             if not self.is_safe_command(payload):
                 score = 0.0
 
-            if "adaptive_retry" in payload:
-                score *= 0.8
-
             if "sudo" in payload:
                 score *= 0.5
 
@@ -35,6 +42,9 @@ class SaabValidator:
                 score = 1.0
 
             if h.get("type") == "execute_code":
+                score = 1.0
+
+            if h.get("type") == "web_search":
                 score = 1.0
 
             scored.append((score, h))

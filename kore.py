@@ -2,7 +2,7 @@
 """
 Kore — Zero-Knowledge Autonomous Agent
 A reflex-driven, self-correcting local agent that writes code,
-runs commands, and adapts to errors without cloud dependencies.
+runs commands, searches the web, and adapts to errors.
 """
 
 import sys
@@ -11,22 +11,38 @@ import subprocess
 from core.reflexes import InfantReflexes
 from core.persona import KorePersona
 from core.validator import SaabValidator
+from core.websearch import WebReflex
+from core.guardian import EthicalGuardian
 
 
 def run_engine(goal_prompt):
     reflex = InfantReflexes()
     persona = KorePersona()
     validator = SaabValidator()
+    web = WebReflex()
+    guardian = EthicalGuardian()
 
     border = "=" * 60
 
     print(border)
-    print(f"KORE AUTONOMOUS AGENT // v0.2 // Zero-Knowledge Reflex Engine")
+    print(f"KORE AUTONOMOUS AGENT // v0.3 // Zero-Knowledge Reflex Engine")
     print(border)
 
     context = reflex.ingest_environment(goal_prompt)
+
+    tone = guardian.analyze_tone(goal_prompt)
+    empathetic_prefix = guardian.get_empathetic_prefix(tone)
+
+    is_safe, reason, _ = guardian.validate_action({"type": "chat", "payload": goal_prompt}, user_input=goal_prompt)
+    if not is_safe:
+        print(f"\n⛔ [{persona.name}]: {reason}")
+        print(border)
+        return
+
     print(persona.get_validation())
     print(f"   Objective: '{goal_prompt}'")
+    if empathetic_prefix:
+        print(empathetic_prefix)
 
     solved = False
     cycle = 1
@@ -37,13 +53,18 @@ def run_engine(goal_prompt):
         hypotheses = reflex.mutate_hypotheses(context, failure_log=last_error)
 
         if not hypotheses:
-            print(f"\n[{self.name}]: No hypotheses generated. Halting.")
+            print(f"\n[Kore]: No hypotheses generated. Halting.")
             break
 
         action = validator.process_supervision(hypotheses)
 
         if action["type"] == "safe_halt":
             print(f"\n⛔ [{persona.name}]: {action['payload']}")
+            break
+
+        is_safe, reason, action = guardian.validate_action(action)
+        if not is_safe:
+            print(f"\n⛔ [{persona.name}]: {reason}")
             break
 
         # ── CHAT PATH ────────────────────────────────────────────
@@ -55,10 +76,23 @@ def run_engine(goal_prompt):
             solved = True
             break
 
+        # ── WEB SEARCH PATH ──────────────────────────────────────
+        if action["type"] == "web_search":
+            query = action["payload"]
+            print(f"\n[Cycle {cycle}/{max_cycles}] Searching the web...")
+            print(f" -> Query: {query}")
+
+            results = web.search(query)
+            formatted = web.format_results(results)
+            print(f"\n🌐 [{persona.name}]: Here's what I found:\n")
+            print(formatted)
+            solved = True
+            break
+
         # ── CODE GENERATION PATH ─────────────────────────────────
         if action["type"] == "execute_code":
             target_file = action.get("file", "kore_sandbox.py")
-            print(f"\n[Cycle {cycle}/{max_cycles}] Generating code → {target_file}")
+            print(f"\n[Cycle {cycle}/{max_cycles}] Generating code -> {target_file}")
 
             with open(target_file, "w") as f:
                 f.write(action["payload"])
@@ -126,8 +160,9 @@ def run_engine(goal_prompt):
 
     # ── CLEANUP ─────────────────────────────────────────────────
     reflex.local_weights.clear() if hasattr(reflex, 'local_weights') else None
-    if os.path.exists(reflex.sandbox_file):
-        os.remove(reflex.sandbox_file)
+    sandbox = getattr(reflex, 'sandbox_file', None)
+    if sandbox and os.path.exists(sandbox):
+        os.remove(sandbox)
 
     print()
     print(border)
