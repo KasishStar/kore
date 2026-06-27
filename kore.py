@@ -8,6 +8,7 @@ and formatted terminal output.
 import sys
 import os
 import json
+import re
 import difflib
 import subprocess
 from core.reflexes import InfantReflexes
@@ -34,6 +35,22 @@ if os.path.exists(CONFIG_FILE):
 SEMANTIC_THRESHOLD = CONFIG.get("kore", {}).get("semantic_threshold", 0.35)
 MAX_CYCLES = CONFIG.get("kore", {}).get("max_cycles", 4)
 SANDBOX_TIMEOUT = CONFIG.get("kore", {}).get("sandbox_timeout", 10)
+
+
+def _summarize(snippets, max_sentences=3):
+    text = " ".join(s.strip() for s in snippets if s.strip())
+    if not text:
+        return None
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    result = []
+    for s in sentences:
+        s = s.strip()
+        if len(s) < 15:
+            continue
+        result.append(s)
+        if len(result) >= max_sentences:
+            break
+    return " ".join(result) if result else None
 
 
 def check_knowledge_cache(query):
@@ -107,7 +124,7 @@ def run_engine(goal_prompt, memory=None):
     if cached:
         synth = get_synthesizer()
         response = synth.generate(topic=goal_prompt) or cached
-        label = D.colorize('Synthesized', D.Color.MAGENTA) if response != cached else D.colorize('Knowledge Base', D.Color.GREEN)
+        label = D.color('Synthesized', D.Color.MAGENTA) if response != cached else D.color('Knowledge Base', D.Color.GREEN)
         tag = D.dim('(generated)') if response != cached else D.dim('(cached)')
         print(D.divider())
         print(f"  {D.highlight(' KORE v0.3 ', D.Color.BG_CYAN, D.Color.BLACK)} "
@@ -161,10 +178,37 @@ def run_engine(goal_prompt, memory=None):
             break
 
         if action["type"] in ("chat_internal", "chat_unknown"):
-            response = persona.handle_chat(action["payload"], action["type"])
-            print(persona.format_response(response, tone))
-            event_type = "chat_unknown" if action["type"] == "chat_unknown" else "chat"
-            memory.log_event(event_type, f"Responded to: {goal_prompt[:60]}")
+            if action["type"] == "chat_unknown":
+                print(f"\n  {D.badge_arrow('Learning')} Searching the web...")
+                results = web.search(goal_prompt)
+                snippets = [r.get("snippet", r.get("title", "")) for r in results if r.get("snippet") or r.get("title")]
+                summary = _summarize(snippets) if snippets else None
+                if summary:
+                    concept = " ".join(re.findall(r"[A-Za-z0-9']+", goal_prompt.lower()))[:120]
+                    try:
+                        with open(KNOWLEDGE_FILE, "r") as f:
+                            kb = json.load(f)
+                    except:
+                        kb = {}
+                    if concept not in kb:
+                        kb[concept] = summary
+                        os.makedirs(os.path.dirname(KNOWLEDGE_FILE), exist_ok=True)
+                        with open(KNOWLEDGE_FILE, "w") as f:
+                            json.dump(kb, f, indent=2)
+                    synth = get_synthesizer()
+                    synth.build()
+                    response = synth.generate(topic=goal_prompt) or summary
+                    print(f"\n  {D.color('Learned', D.Color.GREEN)}"
+                          f" {D.dim('(cached for next time)')}")
+                    print(f"\n  {response}")
+                else:
+                    response = persona.handle_chat(action["payload"], action["type"])
+                    print(persona.format_response(response, tone))
+                memory.log_event("chat_unknown", f"Responded to: {goal_prompt[:60]}")
+            else:
+                response = persona.handle_chat(action["payload"], action["type"])
+                print(persona.format_response(response, tone))
+                memory.log_event("chat", f"Responded to: {goal_prompt[:60]}")
             solved = True
             break
 
@@ -182,7 +226,7 @@ def run_engine(goal_prompt, memory=None):
             url = action["payload"]
             print(f"\n  {D.badge_arrow('Fetch URL')} {D.italic(url)}")
             content = web.fetch_url(url)
-            print(f"\n  {D.colorize('Page Content', D.Color.GREEN)}")
+            print(f"\n  {D.color('Page Content', D.Color.GREEN)}")
             print(f"\n  {content[:2000]}")
             memory.log_event("fetch", f"Fetched: {url[:60]}")
             solved = True
