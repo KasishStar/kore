@@ -355,11 +355,16 @@ def interactive_mode():
     print(f"  {D.dim('Trainer:')} {D.color(tag, D.Color.GREEN if trainer_running() else D.Color.GRAY)}"
           f"  {D.dim('KB:')} {D.bold(str(kb_entry_count()))}\n")
 
+    got_first = False
     while True:
         try:
             user_input = input(f"  {D.Color.CYAN}❯{D.Style.RESET} ").strip()
             if not user_input:
                 continue
+            if not got_first:
+                got_first = True
+                if not user_input.startswith("/"):
+                    memory.set_session_name(user_input)
             if user_input.lower() in ("exit", "quit", "q", "/exit"):
                 print(f"\n  {D.badge_info('Bye')} Session {sid} saved.\n")
                 break
@@ -395,11 +400,14 @@ def handle_command(cmd, memory):
             print(f"  {D.bold(c):10} {D.dim(d)}")
         print()
 
-    elif command == "/session":
+    if command == "/session":
         sid = memory.session_id
         events = memory.get_session_events(limit=1)
+        sessions_map = dict(memory.list_sessions())
+        label = sessions_map.get(sid, sid)
         print(f"\n  {D.bold('Current Session')}")
         print(f"  {D.dim('ID:')}       {sid}")
+        print(f"  {D.dim('Name:')}     {label}")
         print(f"  {D.dim('Events:')}   {len(memory.get_session_events())}")
         print(f"  {D.dim('Memory:')}   {memory.memory_dir}")
         if events:
@@ -412,21 +420,37 @@ def handle_command(cmd, memory):
             print(f"\n  {D.dim('No sessions found.')}\n")
         else:
             print(f"\n  {D.bold(f'Sessions ({len(sessions)})')}")
-            for s in sessions:
-                marker = "→" if s == memory.session_id else " "
-                print(f"  {marker} {s}")
+            for sid, label in sessions:
+                marker = "→" if sid == memory.session_id else " "
+                display = label if label != sid else sid
+                print(f"  {marker} {display}  {D.dim(f'({sid})')}" if display != sid else f"  {marker} {sid}")
             print()
 
     elif command == "/switch":
         if len(parts) < 2:
-            print(f"\n  {D.dim('Usage: /switch <session_id>')}")
+            print(f"\n  {D.dim('Usage: /switch <session_id_or_name>')}")
             print(f"  {D.dim('Use /sessions to list available sessions.')}\n")
         else:
-            sid = parts[1]
-            if memory.switch_session(sid):
-                print(f"\n  {D.color('Switched to session', D.Color.GREEN)} {D.bold(sid)}\n")
+            query = " ".join(parts[1:])
+            sessions = memory.list_sessions()
+            matched = None
+            for sid, label in sessions:
+                if sid == query or label == query:
+                    matched = sid
+                    break
+            if not matched:
+                for sid, label in sessions:
+                    if query in sid or query.lower() in label.lower():
+                        matched = sid
+                        break
+            if matched:
+                if memory.switch_session(matched):
+                    display = dict(sessions).get(matched, matched)
+                    print(f"\n  {D.color('Switched to session', D.Color.GREEN)} {D.bold(display)}\n")
+                else:
+                    print(f"\n  {D.dim('Already on that session.')}\n")
             else:
-                print(f"\n  {D.dim('Already on session')} {sid}\n")
+                print(f"\n  {D.dim('No session matches')} {query}\n")
 
     elif command == "/clear":
         memory.clear_session()

@@ -5,6 +5,13 @@ import uuid
 from datetime import datetime
 
 
+def _short_label(text, max_len=40):
+    clean = text.strip().rstrip("?!.,;:")
+    if len(clean) <= max_len:
+        return clean
+    return clean[:max_len].rsplit(" ", 1)[0] + "…"
+
+
 class MemoryManager:
     def __init__(self, memory_dir=None, session_id=None):
         if memory_dir is None:
@@ -17,6 +24,7 @@ class MemoryManager:
         self.episodic_file = os.path.join(self.memory_dir, f"history_{self.session_id}.jsonl")
         self.global_history = os.path.join(self.memory_dir, "history.jsonl")
         self.semantic_file = os.path.join(self.memory_dir, "facts.json")
+        self.sessions_file = os.path.join(self.memory_dir, "sessions.json")
 
         self._init_files()
 
@@ -31,11 +39,26 @@ class MemoryManager:
             self._write_json(self.semantic_file, {
                 "user_preferences": {}, "project_facts": {}, "learned_patterns": []
             })
+        if not os.path.exists(self.sessions_file):
+            self._write_json(self.sessions_file, {})
+        self._register_current_session()
+
+    def _register_current_session(self):
+        data = self._read_json(self.sessions_file)
+        if self.session_id not in data:
+            data[self.session_id] = self.session_id
+            self._write_json(self.sessions_file, data)
+
+    def set_session_name(self, name):
+        data = self._read_json(self.sessions_file)
+        data[self.session_id] = _short_label(name)
+        self._write_json(self.sessions_file, data)
 
     def switch_session(self, session_id):
         old_file = self.episodic_file
         self.session_id = session_id
         self.episodic_file = os.path.join(self.memory_dir, f"history_{session_id}.jsonl")
+        self._register_current_session()
         return old_file != self.episodic_file
 
     def _write_json(self, path, data):
@@ -113,21 +136,10 @@ class MemoryManager:
         return self.get_recent_events(limit=limit, event_type="error")
 
     def list_sessions(self):
-        sessions = set()
-        if not os.path.exists(self.global_history):
+        if not os.path.exists(self.sessions_file):
             return []
-        with open(self.global_history, "r") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    try:
-                        e = json.loads(line)
-                        s = e.get("session", "")
-                        if s and len(s) == 8:
-                            sessions.add(s)
-                    except json.JSONDecodeError:
-                        continue
-        return sorted(sessions)
+        data = self._read_json(self.sessions_file)
+        return sorted(data.items(), key=lambda x: x[0])
 
     def clear_session(self):
         if os.path.exists(self.episodic_file):
@@ -140,6 +152,8 @@ class MemoryManager:
                 os.remove(os.path.join(self.memory_dir, f))
         if os.path.exists(self.global_history):
             os.remove(self.global_history)
+        if os.path.exists(self.sessions_file):
+            os.remove(self.sessions_file)
         self.clear_working_context()
 
     def learn_fact(self, category, key, value):
